@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb  6 20:44:27 2024
+
+Classification of SSVEP using Riemanian Geometry - Minimum Distance to Mean Classifier
+Data used is from the Pilot 02 SSVEP experiment from Research Module 01 @UOL
+
+based on : https://pyriemann.readthedocs.io/en/latest/auto_examples/SSVEP/plot_classify_ssvep_mdm.html#sphx-glr-auto-examples-ssvep-plot-classify-ssvep-mdm-py
+
+@author: abinjacob
+"""
+
+#%% libraries
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+import mne
+from sklearn.model_selection import cross_val_score, RepeatedKFold
+
+from pyriemann.estimation import BlockCovariances
+from pyriemann.utils.mean import mean_riemann
+from pyriemann.classification import MDM
+
+#%% load data
+
+# EEGLab file to load (.set)
+filename = 'P02_SSVEP_preprocessed2Chans.set'
+
+filepath = '/Users/abinjacob/Documents/01. Calypso/EEG Coding/SSVEP/DATA' 
+fullpath = f'{filepath}/{filename}'
+
+# load file in mne 
+raw = mne.io.read_raw_eeglab(fullpath, eog= 'auto', preload= True)
+events, _ = mne.events_from_annotations(raw, verbose= False)
+event_id = {'stim_L15': 13, 'stim_L20': 14, 'stim_R15': 15, 'stim_R20': 16}
+target_events = mne.pick_events(events, include=[13, 14, 15, 16])
+sfreq = int(raw.info['sfreq'])
+eeg = raw.get_data()
+no_of_chans = len(raw.info['ch_names'])
+
+#%% extended signal for spatial covariance
+
+"""
+Enhancing SSVEP signal by extended signal representation as described in (Congedo et al., 2013).
+This involves narrow band filtering signal at stim freqs and stacking them together.
+
+"""
+
+# function for bandpass filter 
+def bandpass_filter(raw, l_freq, h_freq, method="iir", verbose=False):
+    return raw.copy().filter(l_freq=l_freq, h_freq=h_freq, method=method, verbose=verbose).get_data()
+
+# function to extend signal
+def extend_signal(raw, frequencies, freq_band):
+    raw_ext = np.vstack([
+        bandpass_filter(raw, l_freq=f - freq_band, h_freq=f + freq_band)
+        for f in frequencies]
+    )
+
+    info = mne.create_info(
+        ch_names=sum(
+            list(map(lambda f: [ch + '-' + str(f) + 'Hz'
+                                for ch in raw.ch_names],
+                     frequencies)), []),
+        ch_types=['eeg'] * len(raw.ch_names) * len(frequencies),
+        sfreq=int(raw.info['sfreq'])
+    )
+
+    return mne.io.RawArray(raw_ext, info)
+
+
+# stimulatio frequencies
+stimFreqs = [15, 20]
+# narrow band around each target 
+freqBands = 0.1
+
+# stack the filtered signals to build extended signal
+raw_extended = extend_signal(raw, stimFreqs, freqBands)
+
+# plotting the extended signal 
+# n_seconds = 2
+# time = np.linspace(0, n_seconds, n_seconds * sfreq, endpoint=False)[np.newaxis, :]
+# raw_extended.plot(duration=n_seconds, start=14, n_channels=24, scalings={'eeg': 5e-7}, color={'eeg': 'steelblue'})
+
+#%% epoching 
+
+tmin = -0.2
+tmax = 4
+
+epochs = mne.Epochs(
+    raw_extended, 
+    events= events, 
+    event_id= [event_id['stim_L15'], event_id['stim_L20'], event_id['stim_R15'], event_id['stim_R20']],
+    tmin= tmin, tmax= tmax, 
+    baseline= None, 
+    preload= True, 
+    reject={'eeg': 3.0})
+
+#%% spatial covariance 
+# covariance matrix is estimated using the Ledoit-Wolf shrinkage estimator on the extended signal
+
+# array of covariance matrix with one matrix per block of epochs
+cov_ext_trials = BlockCovariances(estimator='lwf', block_size= no_of_chans).transform(epochs.get_data())
+
+
+# ploting covariance matrix
+# This plot shows an example of a covariance matrix observed for each class:
+ch_names = raw_extended.info['ch_names']
+plt.figure(figsize=(7, 7))
+for i, l in enumerate(event_id):
+    ax = plt.subplot(2, 2, i+1)
+    plt.imshow(cov_ext_trials[target_events[:, 2] == event_id[l]][0],cmap=plt.get_cmap('RdBu_r'))
+    plt.title('Cov for class: '+l)
+    plt.xticks([])
+    if i == 0 or i == 2:
+        plt.yticks(np.arange(len(ch_names)), ch_names)
+        ax.tick_params(axis='both', which='major', labelsize=7)
+    else:
+        plt.yticks([])
+plt.show()
+
+
+#%% classify with MDM
+
+# print("Number of trials: {}".format(len(cov_ext_trials)))
+cv = RepeatedKFold(n_splits=7, n_repeats=15, random_state=42)
+mdm = MDM(metric=dict(mean='riemann', distance='riemann'))
+scores = cross_val_score(mdm, cov_ext_trials, target_events[:, 2], cv=cv, n_jobs=1)
+print("MDM accuracy: {:.2f}% +/- {:.2f}".format(np.mean(scores)*100, np.std(scores)*100))
+
+
+
