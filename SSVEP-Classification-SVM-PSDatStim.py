@@ -144,16 +144,6 @@ for i in range(0,len(labels)):
     else:
         labels[i] = 20
         
-# Refine psds to frequency range around [12,25]
-# freq_range = range(np.where(np.floor(freqs) == 12)[0][0], np.where(np.ceil(freqs) == 25)[0][0])
-# Mean over freq bins
-# X = psds[:,:,freq_range]
-
-# flatten the 3d EEG PSD matrix into vectors for classifier
-# trials, chans, timepts = X.shape
-# X = X.reshape((trials, -1))
-# y = labels # labels
-
 # create X vector 
 X = np.concatenate((stimPSD[15], stimPSD[20]), axis=0)
 # create y vector
