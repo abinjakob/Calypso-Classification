@@ -118,11 +118,21 @@ y = labels # labels
 
 
 #%% PERMUTATION TEST
-PTacc = []
+
 # number of test runs 
 testTrials = 1000
-# average model accuracy observed 
+
+# initalising vectors
+PTacc = []
+PTprecision = []
+PTrecall = []
+PTf1score = []
+
+# model performance observed (with real data) 
 modelAcc = .7778
+modelPrecision = .6875
+modelRecall = .9167
+mdelF1score = .7857
 
 for iRun in range(testTrials):
     # shuffling labels 
@@ -156,24 +166,55 @@ for iRun in range(testTrials):
     PTacc.append(accuracy_score(y_test, y_pred))
     # precision (positive predictive value)
     precision = (tp)/(tp + fp)
+    PTprecision.append(precision)
     # recall (sensitivy or true positive rate)
     recall = (tp)/(tp + fn)
+    PTrecall.append(recall)
     # f1 score (equillibrium between precision and recall)
     f1score = (2 * precision * recall) / (precision + recall)
-    print(f'Running the permutation trial: {iRun}')
+    PTf1score.append(f1score)
+    
+    # reporting after every 50 trials
+    if iRun % 50 == 0:
+        print(f'Running the permutation trial: {iRun}')
     
     # PrecisionRecallDisplay.from_estimator(clf, X_test, y_test)
     # PrecisionRecallDisplay.from_predictions(clf, y_test, y_pred)
 
 #%% plot histogram
+plt.figure(figsize=(10,8))
 
-# Plot histogram
-plt.hist(PTacc, bins=20, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
+# plot accuracy
+plt.subplot(2,2,1)
+plt.hist(PTacc, bins=40, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
 # Add a vertical line for the observed accuracy
-plt.axvline(x=modelAcc, color='red', linestyle='dashed', linewidth=1, label='model Accuracy')  
-plt.xlabel('Accuracy')
-plt.ylabel('Frequency')
-plt.title('Histogram of Model Accuracy')
+plt.axvline(x=modelAcc, color='red', linestyle='dashed', linewidth=1, label='model accuracy')  
+plt.title('Accuracy')
 plt.legend()
-plt.grid(True)
+
+# plot precision
+plt.subplot(2,2,2)
+plt.hist(PTprecision, bins=40, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
+# Add a vertical line for the observed accuracy
+plt.axvline(x=modelPrecision, color='red', linestyle='dashed', linewidth=1, label='model precision')  
+plt.title('Precision')
+plt.legend()
+
+# plot recall
+plt.subplot(2,2,3)
+plt.hist(PTrecall, bins=40, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
+# Add a vertical line for the observed accuracy
+plt.axvline(x=modelRecall, color='red', linestyle='dashed', linewidth=1, label='model recall')  
+plt.title('Recall')
+plt.legend()
+
+# plot f1 score
+plt.subplot(2,2,4)
+plt.hist(PTf1score, bins=40, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
+# Add a vertical line for the observed accuracy
+plt.axvline(x=mdelF1score, color='red', linestyle='dashed', linewidth=1, label='model f1 score')  
+plt.title('F1 score')
+plt.legend()
+
+plt.suptitle("Permutation Test of SVM Model with PSD features")
 plt.show()
