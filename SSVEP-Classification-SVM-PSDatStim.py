@@ -57,7 +57,7 @@ show_filter = False
 
 rootpath = r'L:\Cloud\NeuroCFN\RESEARCH PROJECT\Research Project 02\Classification\Data'
 # EEGLab file to load (.set)
-filename = 'P02_SSVEP_preprocessed24Chans.set'
+filename = 'P02_SSVEP_preprocessed5Chans.set'
 filepath = op.join(rootpath,filename)
 # load file in mne 
 raw = mne.io.read_raw_eeglab(filepath, eog= 'auto', preload= True)
@@ -121,7 +121,8 @@ psds, freqs = spectrum.get_data(return_freqs=True)
 # initialising a dictionary to store the values
 stimPSD = {}
 # stimulation frequencies and second harmonics
-stimF = [15, 20, 30, 40]
+stimF = [15, 20]
+# stimF = [15, 20, 30, 40]
 # frequency band to be considered around stim freqs
 fb = .5
 
@@ -153,10 +154,15 @@ for i in range(0,len(labels)):
 # X = X.reshape((trials, -1))
 # y = labels # labels
 
-# create X vector
-X = np.concatenate((stimPSD[15], stimPSD[20], stimPSD[30], stimPSD[40]), axis=0)
+# create X vector 
+X = np.concatenate((stimPSD[15], stimPSD[20]), axis=0)
 # create y vector
-y = np.concatenate([labels, labels, labels, labels])
+y = np.concatenate([labels, labels])
+
+# # create X vector
+# X = np.concatenate((stimPSD[15], stimPSD[20], stimPSD[30], stimPSD[40]), axis=0)
+# # create y vector
+# y = np.concatenate([labels, labels, labels, labels])
 
 
 #%% sanity check by shuffling the features and labels
@@ -240,4 +246,6 @@ print(f'F1 Score: {f1score*100:.2f}%')
 
 # PrecisionRecallDisplay.from_estimator(clf, X_test, y_test)
 # PrecisionRecallDisplay.from_predictions(clf, y_test, y_pred)
+
+
 
