@@ -120,15 +120,15 @@ psds, freqs = spectrum.get_data(return_freqs=True)
 
 # initialising a dictionary to store the values
 stimPSD = {}
-# stimulation frequencies
-stimF = [15, 20]
+# stimulation frequencies and second harmonics
+stimF = [15, 20, 30, 40]
 # frequency band to be considered around stim freqs
 fb = .5
 
 for iFreq in stimF:
     # find index of stim freqs
-    freqIdx = np.where((freqs >= iFreq-(fb/2)) & (freqs <= iFreq+(fb/2)))[0]   # band of frequency around stim freqs
-    # freqIdx = np.where(freqs == iFreq)[0]                                        # exactly at stim freqs
+    # freqIdx = np.where((freqs >= iFreq-(fb/2)) & (freqs <= iFreq+(fb/2)))[0]   # band of frequency around stim freqs
+    freqIdx = np.where(freqs == iFreq)[0]                                        # exactly at stim freqs
     # psd values at stim freqs
     stimPSD[iFreq] = np.mean(psds[:,:, freqIdx], axis=-1)
 
@@ -154,9 +154,9 @@ for i in range(0,len(labels)):
 # y = labels # labels
 
 # create X vector
-X = np.concatenate((stimPSD[15], stimPSD[20]), axis=0)
+X = np.concatenate((stimPSD[15], stimPSD[20], stimPSD[30], stimPSD[40]), axis=0)
 # create y vector
-y = np.concatenate([labels, labels])
+y = np.concatenate([labels, labels, labels, labels])
 
 
 #%% sanity check by shuffling the features and labels
@@ -240,6 +240,4 @@ print(f'F1 Score: {f1score*100:.2f}%')
 
 # PrecisionRecallDisplay.from_estimator(clf, X_test, y_test)
 # PrecisionRecallDisplay.from_predictions(clf, y_test, y_pred)
-
-
 
