@@ -42,7 +42,7 @@ foi = [15, 20, 15, 20] # Freqs of interest
 
 # PSD computation
 fmin = 1.0
-fmax = 100.0
+fmax = 100
 # Show filter
 show_filter = False
 
@@ -87,27 +87,27 @@ spectrum = epochs.compute_psd(
 psds, freqs = spectrum.get_data(return_freqs=True)
 
 # # Plot PSD - all 4 conditions
-fig, axs = plt.subplots(2, 2, sharex="all", sharey="none", figsize=(8, 5))
-axs = axs.reshape(-1)
-freq_range = range(np.where(np.floor(freqs) == fmin)[0][0], np.where(np.ceil(freqs) == fmax - 1)[0][0])
-for i in range(0,4):  
-    # Get all events for specific event ID (condition)
-    condition = event_names[i]
-    idx = epochs.events[:,2]==event_id[condition]
-    # Select only corresponding epochs
-    psds_plot = 10 * np.log10(psds[idx,:,:])
-    psds_mean = psds.mean(axis=(0, 1))[freq_range] # mean over trials and channels
-    psds_std = psds.std(axis=(0, 1))[freq_range]
+# fig, axs = plt.subplots(2, 2, sharex="all", sharey="none", figsize=(8, 5))
+# axs = axs.reshape(-1)
+# freq_range = range(np.where(np.floor(freqs) == fmin)[0][0], np.where(np.ceil(freqs) == fmax - 1)[0][0])
+# for i in range(0,4):  
+#     # Get all events for specific event ID (condition)
+#     condition = event_names[i]
+#     idx = epochs.events[:,2]==event_id[condition]
+#     # Select only corresponding epochs
+#     psds_plot = 10 * np.log10(psds[idx,:,:])
+#     psds_mean = psds.mean(axis=(0, 1))[freq_range] # mean over trials and channels
+#     psds_std = psds.std(axis=(0, 1))[freq_range]
     
-    # Plot
-    axs[i].plot(freqs[freq_range], psds_mean, color="b")
-    axs[i].fill_between(
-        freqs[freq_range], psds_mean - psds_std, psds_mean + psds_std, color="b", alpha=0.2
-        )
-    axs[i].set(title=f"PSD spectrum {condition}", ylabel="Power Spectral Density [dB]")
-    axs[i].set_xlim(5,45)
+#     # Plot
+#     axs[i].plot(freqs[freq_range], psds_mean, color="b")
+#     axs[i].fill_between(
+#         freqs[freq_range], psds_mean - psds_std, psds_mean + psds_std, color="b", alpha=0.2
+#         )
+#     axs[i].set(title=f"PSD spectrum {condition}", ylabel="Power Spectral Density [dB]")
+#     axs[i].set_xlim(5,45)
 
-fig.show()
+# fig.show()
 
 #%% preparing data for classification
 
@@ -129,9 +129,36 @@ trials, chans, timepts = X.shape
 X = X.reshape((trials, -1))
 y = labels # labels
 
+
 #%% sanity check by shuffling the features and labels
 # X = shuffle(X)        ### comment this line
 # y = shuffle(y)        ### comment this line
+
+# # Plot some samples or features
+# plt.figure(figsize=(10, 5))
+# for i in range(5):  # Plot first 5 samples
+#     plt.subplot(2, 5, i + 1)
+#     plt.plot(X[i])
+#     plt.title(f'Sample {i+1}')
+#     plt.xlabel('Feature Index')
+#     plt.ylabel('Feature Value')
+# plt.tight_layout()
+# plt.show()
+
+# # plot feature in scatter plot
+# # Extracting labels 15 and 20 from X
+# X_label_15 = X[y == 15]
+# X_label_20 = X[y == 20]
+
+# # Plotting
+# plt.scatter(X_label_15[:,0:600], X_label_15[:,600:1200], label='Label 15')
+# plt.scatter(X_label_20[:,0:600], X_label_20[:,600:1200], label='Label 20')
+
+# plt.xlabel('Feature 1')
+# plt.ylabel('Feature 2')
+# plt.title('Scatter plot of features colored by labels')
+# plt.legend()
+# plt.show()
 
 #%% SVM classifier with 5 fold cross-validation 
 
@@ -184,5 +211,6 @@ print(f'F1 Score: {f1score*100:.2f}%')
 
 # PrecisionRecallDisplay.from_estimator(clf, X_test, y_test)
 # PrecisionRecallDisplay.from_predictions(clf, y_test, y_pred)
+
 
 
