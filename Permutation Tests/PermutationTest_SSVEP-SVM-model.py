@@ -122,7 +122,7 @@ PTacc = []
 # number of test runs 
 testTrials = 1000
 # average model accuracy observed 
-modelAcc = 77.78
+modelAcc = .7778
 
 for iRun in range(testTrials):
     # shuffling labels 
@@ -160,7 +160,7 @@ for iRun in range(testTrials):
     recall = (tp)/(tp + fn)
     # f1 score (equillibrium between precision and recall)
     f1score = (2 * precision * recall) / (precision + recall)
-    
+    print(f'Running the permutation trial: {iRun}')
     
     # PrecisionRecallDisplay.from_estimator(clf, X_test, y_test)
     # PrecisionRecallDisplay.from_predictions(clf, y_test, y_pred)
@@ -170,7 +170,7 @@ for iRun in range(testTrials):
 # Plot histogram
 plt.hist(PTacc, bins=20, color='skyblue', edgecolor='black')  # Adjust the number of bins as needed
 # Add a vertical line for the observed accuracy
-plt.axvline(x=modelAcc, color='red', linestyle='dashed', linewidth=1, label='Observed Accuracy')  
+plt.axvline(x=modelAcc, color='red', linestyle='dashed', linewidth=1, label='model Accuracy')  
 plt.xlabel('Accuracy')
 plt.ylabel('Frequency')
 plt.title('Histogram of Model Accuracy')
