@@ -127,8 +127,8 @@ fb = .5
 
 for iFreq in stimF:
     # find index of stim freqs
-    # freqIdx = np.where((freqs >= iFreq-(fb/2)) & (freqs <= iFreq+(fb/2)))[0]   # around a band of frequency around stim freqs
-    freqIdx = np.where(freqs == iFreq)[0]                                        # exactly at stim freqs
+    freqIdx = np.where((freqs >= iFreq-(fb/2)) & (freqs <= iFreq+(fb/2)))[0]   # band of frequency around stim freqs
+    # freqIdx = np.where(freqs == iFreq)[0]                                        # exactly at stim freqs
     # psd values at stim freqs
     stimPSD[iFreq] = np.mean(psds[:,:, freqIdx], axis=-1)
 
@@ -192,7 +192,7 @@ y = np.concatenate([labels, labels])
 #%% SVM classifier with 5 fold cross-validation 
 
 # split the dataset into trainning and testing set
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
 # define a pipeline with preprocessing (scaling) and SVM classifier
 pipeline = make_pipeline(StandardScaler(), SVC())
