@@ -26,7 +26,7 @@
 % clear; clc; close all;
 
 % add EEGLab to matlab path
-addpath('L:\Cloud\SW\eeglab2023.1');
+% addpath('L:\Cloud\SW\eeglab2023.1');
 
 % parameters for pre-proecssing
 % filtering 
@@ -236,4 +236,40 @@ labels_y = labels;
 filePath = 'L:\Cloud\NeuroCFN\RESEARCH PROJECT\Research Project 02\Classification\Data\gedPSD_Labels_y.mat';
 save(filePath, 'labels_y')
 
+%% saving just the GED values 
 
+% concatenating powers and labels 
+% Initialize variables
+concatGED = [];
+
+% Loop over filters
+for iFilt = 1:size(gedWeights, 2)
+    % Concatenate GED for each filter 
+    concatGED = [concatGED; gedWeights(iFilt).data];
+end
+
+% create feature vector (X)
+% create transpose (n_samples x n_features)
+features_X = concatGED';
+
+% initialize labels with zeros
+labels = zeros(1, size(EEG.event, 2));
+% creating labels 
+for iTrial = 1:size(EEG.event, 2)
+    % check for 15 Hz trials
+    if contains(EEG.event(iTrial).type, '15')
+        labels(iTrial) = 15;
+    elseif contains(EEG.event(iTrial).type, '20')
+        labels(iTrial) = 20;
+    end
+end
+% create labels (y)
+labels_y = labels;
+
+% save feature vector
+filePath = '/Users/abinjacob/Documents/02. NeuroCFN/Research Module/RM02/Data/gedPSD_Features_X.mat';
+save(filePath, 'features_X')
+
+% % save labels
+filePath = '/Users/abinjacob/Documents/02. NeuroCFN/Research Module/RM02/Data/gedPSD_Labels_y.mat';
+save(filePath, 'labels_y')
