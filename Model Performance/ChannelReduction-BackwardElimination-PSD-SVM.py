@@ -112,7 +112,7 @@ for i in range(0,len(labels)):
 # Refine psds to frequency range around [12,45]
 freq_range = range(np.where(np.floor(freqs) == 5)[0][0], np.where(np.ceil(freqs) == 45)[0][0])
 
-#%% channel reduction - backward rejection method using CCA and SVM
+#%% channel reduction - backward rejection method using PSD and SVM
 
 # channel names
 chans = raw.info.ch_names.copy()
