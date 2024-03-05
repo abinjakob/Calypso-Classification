@@ -2,6 +2,8 @@
 """
 Created on Mon Feb 26 15:20:56 2024
 
+Channel Selection based on Backward Elimination with PSD and SVM 
+-----------------------------------------------------------------
 This script is used for the channel reduction for SSVEP experiment using SVM
 
 Concept:
@@ -36,8 +38,6 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.svm import SVC
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-
-from sklearn.utils import shuffle
 
 #%% parameters
 
@@ -109,10 +109,10 @@ for i in range(0,len(labels)):
     else:
         labels[i] = 20
 
-# Refine psds to frequency range around [12,25]
-freq_range = range(np.where(np.floor(freqs) == 12)[0][0], np.where(np.ceil(freqs) == 25)[0][0])
+# Refine psds to frequency range around [12,45]
+freq_range = range(np.where(np.floor(freqs) == 5)[0][0], np.where(np.ceil(freqs) == 45)[0][0])
 
-#%%
+#%% channel reduction - backward rejection method using CCA and SVM
 
 # channel names
 chans = raw.info.ch_names.copy()
@@ -184,7 +184,7 @@ for run in range(psds.shape[1]-1):
     chans.pop(chanIdx)
 
 plt.plot(np.arange(1, len(chanDeleted)+1), modelAcc, 'bs--', linewidth = 0.6)
-plt.title('SVM Model Performance after Channel Reduction')
+plt.title('SVM Model Performance after Channel Reduction (kernel: sigmoid, c:1, gamma:0.001)')
 plt.ylabel('Model Performance')
 plt.xlabel('no of channels reduced')
 plt.grid(color= 'lightgrey', alpha= 0.3)
