@@ -108,7 +108,7 @@ muEEG = pop_firws(muEEG, 'fcutoff', mu(1), 'ftype', 'highpass', 'wtype', 'hammin
 
 % loop over trials 
 for iTrial = 1:size(muEEG.data,3)
-    trialData = muEEG.data(:,:,1);
+    trialData = muEEG.data(:,:,iTrial);
     muERD(iTrial,:,:) = ERDfeature(trialData, binsize, base_start, base_end, fs); 
 end 
 
