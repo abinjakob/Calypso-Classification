@@ -42,13 +42,16 @@ end
 chanPower = mean(chanPower_vals,3);
 
 % baseline duration
-baseline_period = base_end - base_start;
+epoch_time = epoch_start:epoch_end;
+bin_basestart = ceil(find(epoch_time == base_start)*EEG.srate/binsize);
+bin_baseend = ceil(find(epoch_time == base_end)*EEG.srate/binsize);
 
 % calculate ERD
 % loop over channels 
 for iChan = 1:size(chanPower,1)
     % calculating avg power in baseline period (reference period, R)
-    baseline_avg = mean(chanPower(iChan, 1:(floor((baseline_period*fs)/binsize))));
+    baseline_avg = mean(chanPower(iChan, bin_basestart:bin_baseend));
+    %baseline_avg = mean(chanPower(iChan, 50:66));
     % calculating ERD% = ((A-R)/R)*100
     erd(iChan,:) = ((chanPower(iChan,:)-baseline_avg)/baseline_avg)*100;
 end 
