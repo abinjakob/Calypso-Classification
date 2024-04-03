@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr  3 11:36:09 2024
-
-@author: togo2120
-"""
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
 Created on Wed Mar 20 20:39:29 2024
 
 Classification of the MI signal using RMDM
