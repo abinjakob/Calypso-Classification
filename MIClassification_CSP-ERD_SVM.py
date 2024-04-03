@@ -6,17 +6,16 @@ Created on Wed Mar 20 20:39:29 2024
 Classification of the MI signal using SVM
 ------------------------------------------
 
-This code is implemented based on the youtube tutorial video:
-https://youtu.be/EAQcu6DLAS0
+The script is used for the offline classification of the MI EEG data.  
 
-Feature used: ERD calculated on CSP filtred data
-              This is now used as features for classification. 
+Feature used: ERD calculated from CSP spatial filtred data
 
 Classification: SVM classifier with 5-Fold crossvalidation
                 - spliting data using train_test_split
                 - scaling using StandarScalar
                 - hyperparameter tuning using GridSearchCV
-                
+
+
 @author: Abin Jacob
          Carl von Ossietzky University Oldenburg
          abin.jacob@uni-oldenburg.de
@@ -29,6 +28,7 @@ import mne
 import numpy as np
 import matplotlib.pyplot as plt
 import os.path as op
+from matplotlib import mlab
 
 from sklearn.metrics import confusion_matrix, accuracy_score, PrecisionRecallDisplay, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split, GridSearchCV
@@ -36,11 +36,13 @@ from sklearn.svm import SVC
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from scipy.linalg import eigh
+
+from mne.decoding import CSP
 #%% load data 
 
-rootpath = r'/Users/abinjacob/Documents/02. NeuroCFN/Research Module/RM02/Data'
+rootpath = r'L:\Cloud\NeuroCFN\RESEARCH PROJECT\Research Project 02\Classification\Data'
 # EEGLab file to load (.set)
-filename = 'P01_MI_ICAcleaned.set'
+filename = 'P01_MI_AllProcessed.set'
 filepath = op.join(rootpath,filename)
 # load file in mne 
 raw = mne.io.read_raw_eeglab(filepath, eog= 'auto', preload= True)
@@ -58,31 +60,9 @@ events, eventinfo = mne.events_from_annotations(raw, verbose= False)
 
 #%% paramters for preprocessing 
 
-# filtering 
-# narrow band filtering in mu band (8-12 Hz)
-# high-pass filter 
-hp = 1
-# low-pass filter  
-lp = 40
-# window type
-window = 'hamming'
-
 # epoching
-tmin = -5            
-tmax = 6
-
-# conditions 
-cl_lab = ['left', 'right']
-cl1 = 'left'
-cl2 = 'right'
-# muBand 
-muband = [8,12]
-
-# csp parameters
-# number of components
-k = 3           
-# regularisation
-reg = 1e-8      
+tmin = -3            
+tmax = 4  
 
 # erd calculation parameters
 basestart = -2
@@ -90,16 +70,6 @@ baseend = -1
 # time of interest (ERD period to consider for classification)
 toi = [0,2]
 binsize = 30
-
-#%% preprocess the data
-
-# applying low-pass filter 
-raw.filter(l_freq= None, h_freq= lp, l_trans_bandwidth= 'auto', h_trans_bandwidth= 'auto', filter_length= 'auto', fir_window= window)
-# applying high-pass filter 
-raw.filter(l_freq= hp, h_freq= None, l_trans_bandwidth= 'auto', h_trans_bandwidth= 'auto', filter_length= 'auto', fir_window= window)
-
-# set common average reference
-raw.set_eeg_reference("average", projection=False, verbose=False)
 
 # Events
 event_id = {'left_execution': 7, 'left_imagery': 8, 'right_execution': 13, 'right_imagery': 14}
@@ -112,47 +82,80 @@ epochs = mne.Epochs(
     event_id= [event_id['left_execution'], event_id['left_imagery'], event_id['right_execution'], event_id['right_imagery']], 
     tmin=tmin, tmax=tmax, 
     baseline= (tmin, 0), 
-    preload= True, 
+    preload= True,
+    event_repeated = 'merge',
     reject={'eeg': 4.0}) # Reject epochs based on maximum peak-to-peak signal amplitude (PTP)
 
 
-#%% functions for calculating CSP and ERD 
+#%% functions for calculating CSP and ERD
 
-# computing CSP (using scipy.linalg)
-def CSPcompute(X, y, k, reg):
+# CSP functions
+# calculating CSP based on steps mentioned in Kabir et al. (2023) (https://doi.org/10.3390/math11081921)
+# steps:
+#   compute normalised spatial cov matrices for each class (covmat)
+#   average normalized cov matrices across trials (covavg)
+#   calculate composite cov matrix (covcomp)
+#   perform eigenvalue decomposition on covcomp
+#   calculate whitening transformation matrix (P)
+#   find projection matrix W
+
+# function to compute normalised spatial cov matrices for each class (covmat)
+# cov = E*E'/trace(E*E') where E is the EEG signal of a particular trial 
+# (chan x samples) from a particular class
+def computeNormCov(E):
+    cov = np.cov(E)
+    covmat = cov / np.trace(cov)
+    return covmat
+
+# function to compute average normalized cov matrices across trials (covavg)
+def avgCovmat(data):
+    covavg = np.mean([computeNormCov(trial) for trial in data], axis=0)
+    return covavg
+
+# computing CSP
+def computeCSP(X, y, cond):   
     # data for class 1
-    s1 = X[y==int(cond[0])]
+    Ec1 = X[y==int(cond[0])]
     # data for class 2
-    s2 = X[y==int(cond[1])]
+    Ec2 = X[y==int(cond[1])]    
+    # average normalized cov matrices for each class
+    covavg1 = avgCovmat(Ec1)
+    covavg2 = avgCovmat(Ec2)    
+    # composite cov matrix
+    covcomp = covavg1 + covavg2
     
-    # compute covariance matrix for each class
-    cov1 = np.mean([np.cov(s1[i]) for i in range(len(s1))], axis=0)
-    cov2 = np.mean([np.cov(s2[i]) for i in range(len(s2))], axis=0)
-    
-    # Add regularization to covariance matrices
-    cov1 = cov1 + reg * np.eye(cov1.shape[0])
-    cov2 = cov2 + reg * np.eye(cov2.shape[0])
-    # compute generalised eigenvalues and eigenvectors
-    evals, evecs = eigh(cov1, cov1 + cov2)
-    
+    # eigenvalue decomposition of composite cov matrix
+    evals, evecs = eigh(covcomp)    
     # sort eigenvectors based on eigenvalues
-    eigidx = np.argsort(evals)
+    eigidx = np.argsort(evals)[::-1]
     evals = evals[eigidx]
     evecs = evecs[:, eigidx]
     
-    csp = np.concatenate((evecs[:,:k], evecs[:,-k:]), axis=1)
-    return csp
+    # whitening transformation matrix
+    P = np.dot(evecs, np.dot(np.diag(np.sqrt(1 / evals)), evecs.T))    
+    # transform covariance matrices
+    covwhite1 = np.dot(P.T, np.dot(covavg1, P))
+    covwhite2 = np.dot(P.T, np.dot(covavg2, P))
+    
+    # solve the generalized eigenvalue problem on the transformed matrices
+    _, B = eigh(covwhite1 - covwhite2)    
+    # CSP projection matrix
+    W = np.dot(P, B)
 
-# apply CSP
-def CSPfit(X, csp):
+    return W
+
+# applying CSP weights on data
+def CSPfit(W, data):
     # initialise list to store transformed data
     dataTransform = []
     # loop over trials
-    for trialvals in X:
-        trialTransform = np.dot(csp.T, trialvals)
+    for trialvals in data:
+        trialTransform = np.dot(W.T, trialvals)
         dataTransform.append(trialTransform)
     return np.array(dataTransform)
 
+
+# ERD functions
 # function to calculate ERD
 def ERDcompute(data, binsize, basestart, baseend, tmin, tmax):  
     # data shape
@@ -223,31 +226,32 @@ def ERDfeatures(erd, binsize, toi, tmin, tmax):
     return erdFeat
 
 #%% prepare the data for classification 
-
-# choose only the muband
-muEpochs = epochs.filter(l_freq= None, h_freq= muband[1], l_trans_bandwidth= 'auto', h_trans_bandwidth= 'auto', filter_length= 'auto', fir_window= window)
-muEpochs = epochs.filter(l_freq= muband[0], h_freq= None, l_trans_bandwidth= 'auto', h_trans_bandwidth= 'auto', filter_length= 'auto', fir_window= window)
 # Execution Condition (7 & 13)
 # cond = ['7', '13']
 # Imagery condition (8 & 14)
 cond = ['8', '14']
 
 # create feature vector (X)
-X = muEpochs[cond].get_data()
+X = epochs[cond].get_data()
 # label vector (y)
-y = muEpochs[cond].events[:,2] 
+y = epochs[cond].events[:,2] 
 
 #%% SVM classifier with 5 fold cross-validation 
 
 # split the dataset into trainning and testing set
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-# -- compute CSP
-# compute CSP weights on train set
-csp = CSPcompute(X_train, y_train, k, reg)
-# apply CSP weights on train and test data
-trainCSP = CSPfit(X_train, csp)
-testCSP = CSPfit(X_test, csp)
+# # -- compute CSP using my own script
+# # compute CSP weights on train set
+# W = computeCSP(X_train, y_train, cond)
+# # applying CSP weights on train and test set
+# trainCSP = CSPfit(W, X_train)
+# testCSP = CSPfit(W, X_test)
+
+# -- compute CSP using mne script
+csp = CSP(n_components=23, reg=None, log=None, transform_into = 'csp_space', norm_trace=False)
+trainCSP = csp.fit_transform(X_train, y_train)
+testCSP = csp.transform(X_test)
 
 # -- compute ERD on CSP filtered data
 # compute ERD on train data 
@@ -306,5 +310,4 @@ print(f'Accuracy: {accuracy*100:.2f}%')
 print(f'Precision: {precision*100:.2f}%')
 print(f'Recall: {recall*100:.2f}%')
 print(f'F1 Score: {f1score*100:.2f}%') 
-
-
+    
