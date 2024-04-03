@@ -6,10 +6,9 @@ Created on Fri Mar 29 20:40:17 2024
 Classification of the MI signal using SVM
 ------------------------------------------
 
-This code is implemented based on the youtube tutorial video:
-https://youtu.be/EAQcu6DLAS0
+The script is used for the offline classification of the MI EEG data.  
 
-Feature used: log-var of CSP filtred data
+Feature used: log-var of CSP spatial filtred data
 
 Classification: SVM classifier with 5-Fold crossvalidation
                 - spliting data using train_test_split
@@ -38,9 +37,11 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from scipy.linalg import eigh
 
+from mne.decoding import CSP
+
 #%% load data 
 
-rootpath = r'/Users/abinjacob/Documents/02. NeuroCFN/Research Module/RM02/Data'
+rootpath = r'L:\Cloud\NeuroCFN\RESEARCH PROJECT\Research Project 02\Classification\Data'
 # EEGLab file to load (.set)
 filename = 'P01_MI_AllProcessed.set'
 filepath = op.join(rootpath,filename)
@@ -159,25 +160,21 @@ y = epochs[cond].events[:,2]
 # split the dataset into trainning and testing set
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-# # -- compute CSP
+# # -- compute CSP using my own script
 # # compute CSP weights on train set
 # W = computeCSP(X_train, y_train, cond)
 # # applying CSP weights on train and test set
 # trainCSP = CSPfit(W, X_train)
 # testCSP = CSPfit(W, X_test)
 
-# # using log-var of CSP weights as features
-# X_train = np.log(np.var(trainCSP, axis=2))
-# X_test = np.log(np.var(testCSP, axis=2))
+# -- compute CSP using mne script
+csp = CSP(n_components=23, reg=None, log=None, transform_into = 'csp_space', norm_trace=False)
+trainCSP = csp.fit_transform(X_train, y_train)
+testCSP = csp.transform(X_test)
 
-# from mne.decoding import CSP
-# csp = CSP(n_components=2, reg=None, log=None, transform_into = 'csp_space', norm_trace=False)
-# trainCSP = csp.fit_transform(X_train, y_train)
-# testCSP = csp.transform(X_test)
-# X_train = np.log(np.var(trainCSP, axis=2))
-# X_test = np.log(np.var(testCSP, axis=2))
-
-
+# using log-var of CSP weights as features
+X_train = np.log(np.var(trainCSP, axis=2))
+X_test = np.log(np.var(testCSP, axis=2))
 
 # define a pipeline with preprocessing (scaling) and SVM classifier
 pipeline = make_pipeline(StandardScaler(), SVC())
