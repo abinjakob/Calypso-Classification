@@ -41,36 +41,35 @@ tmin = -0.2
 tmax = 4
 
 # Events
-event_id = {'stim_L15': 13, 'stim_L20': 14, 'stim_R15': 15, 'stim_R20': 16}
+# event_id = {'stim_L15': 13, 'stim_L20': 14, 'stim_R15': 15, 'stim_R20': 16}
+event_id = {'stim_L15': 10, 'stim_L20': 11, 'stim_R15': 12, 'stim_R20': 13}
 event_names = list(event_id.keys())
 foi = [15, 20, 15, 20] # Freqs of interest
-
-# PSD computation
-fmin = 1.0
-fmax = 100
-# Show filter
-show_filter = False
 
 #%% load data 
 
 rootpath = r'L:\Cloud\NeuroCFN\RESEARCH PROJECT\Research Project 02\Classification\Data'
 # EEGLab file to load (.set)
-filename = 'P02_SSVEP_preprocessed24Chans.set'
+filename = 'P03_SSVEP_preprocessed96Chans.set'
 filepath = op.join(rootpath,filename)
 # load file in mne 
 raw = mne.io.read_raw_eeglab(filepath, eog= 'auto', preload= True)
 a = raw.info
 
+# re-referencing 
+# raw.set_eeg_reference(ref_channels=['E28'])
+
 #Preprocess the data
 # extracting events 
-events, _ = mne.events_from_annotations(raw, verbose= False)
+events, eventinfo = mne.events_from_annotations(raw, verbose= False)
 epochs = mne.Epochs(
     raw, 
     events= events, 
     event_id= [event_id['stim_L15'], event_id['stim_L20'], event_id['stim_R15'], event_id['stim_R20']], 
     tmin=tmin, tmax=tmax, 
     baseline= None, 
-    preload= True, 
+    preload= True,
+    event_repeated = 'merge',
     reject={'eeg': 3.0}) # Reject epochs based on maximum peak-to-peak signal amplitude (PTP)
 
 #%% computing CCA 
@@ -130,7 +129,8 @@ for iEpoch in range(numEpochs):
 # create labels 
 labels = epochs.events[:,2]
 for i in range(0,len(labels)):
-    if labels[i]==13 or labels[i]==15:
+    # if labels[i]==13 or labels[i]==15:
+    if labels[i]==10 or labels[i]==12:
         labels[i] = 15
     else:
         labels[i] = 20
@@ -201,24 +201,24 @@ plt.legend()
 
 
 # CCA as classifier (FUN :P)
-pred = []
-for i in range(X.shape[0]):
-    if X[i][0] > X[i][1]:
-        pred.append(15)
-    elif X[i][0] < X[i][1]:
-        pred.append(20)
-accuracy_CCAclf = accuracy_score(y, pred)
-print(f'Accuracy: {accuracy_CCAclf*100:.2f}%')
+# pred = []
+# for i in range(X.shape[0]):
+#     if X[i][0] > X[i][1]:
+#         pred.append(15)
+#     elif X[i][0] < X[i][1]:
+#         pred.append(20)
+# accuracy_CCAclf = accuracy_score(y, pred)
+# print(f'Accuracy: {accuracy_CCAclf*100:.2f}%')
 
 #%%
 
 plt.figure()
 plt.scatter(X_test[:,0][y_test==15], X_test[:,1][y_test==15], label='label 15')
 plt.scatter(X_test[:,0][y_test==20], X_test[:,1][y_test==20], label='label 20')
-plt.scatter(X_test[:,0][y_pred==15], X_test[:,1][y_pred==15], label='pred 15', marker= 'o', facecolors= 'none', edgecolors='red', linewidth=1)
-plt.scatter(X_test[:,0][y_pred==20], X_test[:,1][y_pred==20], label='pred 20', marker= 'o', facecolors= 'none', edgecolors='blue', linewidth=1)
+plt.scatter(X_test[:,0][y_pred==15], X_test[:,1][y_pred==15], label='pred 15', marker= 'o', facecolors= 'none', edgecolors='blue', linewidth=1)
+plt.scatter(X_test[:,0][y_pred==20], X_test[:,1][y_pred==20], label='pred 20', marker= 'o', facecolors= 'none', edgecolors='red', linewidth=1)
 plt.xlabel('cca coeff for 15hz')
 plt.ylabel('cca coeff for 20hz')
-plt.title('SVM Linear Kernal (C=100) Prediction')
+plt.title(f'SSVEP SVM Prediction (Acc: {accuracy*100:.2f}%)')
 plt.legend()
 
