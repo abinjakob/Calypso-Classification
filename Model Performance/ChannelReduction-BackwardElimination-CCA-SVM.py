@@ -40,6 +40,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from sklearn.cross_decomposition import CCA
+import random
 
 #%% parameters
 
@@ -51,7 +52,8 @@ tmin = -0.2
 tmax = 4
 
 # Events
-event_id = {'stim_L15': 13, 'stim_L20': 14, 'stim_R15': 15, 'stim_R20': 16}
+# event_id = {'stim_L15': 13, 'stim_L20': 14, 'stim_R15': 15, 'stim_R20': 16}
+event_id = {'stim_L15': 10, 'stim_L20': 11, 'stim_R15': 12, 'stim_R20': 13}
 event_names = list(event_id.keys())
 foi = [15, 20, 15, 20] # Freqs of interest
 
@@ -65,11 +67,14 @@ show_filter = False
 
 rootpath = r'L:\Cloud\NeuroCFN\RESEARCH PROJECT\Research Project 02\Classification\Data'
 # EEGLab file to load (.set)
-filename = 'P02_SSVEP_preprocessed24Chans.set'
+filename = 'P04_SSVEP_preprocessed.set'
 filepath = op.join(rootpath,filename)
 # load file in mne 
 raw = mne.io.read_raw_eeglab(filepath, eog= 'auto', preload= True)
 a = raw.info
+
+# re-referencing 96 Chan to E43 to match 24 Chan setup
+# raw.set_eeg_reference(ref_channels=['E43'])
 
 #Preprocess the data
 # extracting events 
@@ -81,6 +86,7 @@ epochs = mne.Epochs(
     tmin=tmin, tmax=tmax, 
     baseline= None, 
     preload= True, 
+    event_repeated = 'merge',
     reject={'eeg': 3.0}) # Reject epochs based on maximum peak-to-peak signal amplitude (PTP)
                          # No rejection due to very high value 
 
@@ -89,7 +95,8 @@ epochs = mne.Epochs(
 # create label vector for SVM classification
 labels = epochs.events[:,2]
 for i in range(0,len(labels)):
-    if labels[i]==13 or labels[i]==15:
+    # if labels[i]==13 or labels[i]==15:
+    if labels[i]==10 or labels[i]==12:
         labels[i] = 15
     else:
         labels[i] = 20
@@ -117,8 +124,7 @@ modelAcc = []
 
 # loop over all channels 
 for run in range(eegEpoch.shape[1]-1):
-    print(f'\nModel currenly in loop {run+1}.................')       # print status messgage
-    
+    print('\n')                                                                         # status messgage   
     # initalising arrays to store model performance 
     acc_temp = []
     precision_temp = []
@@ -130,7 +136,7 @@ for run in range(eegEpoch.shape[1]-1):
     
     # loop to kick each channel out in the current run
     for chan2delete in range(eegCalc.shape[1]):
-        print(f'currenly in channel {chan2delete+1}.................')       # print status messgage
+        print(f'Model is at run {run+1} with channel {chan2delete+1}..............')    # status message
         # delete channel temporarily
         eegTemp = np.delete(eegCalc, obj=chan2delete, axis=1)
         
@@ -186,7 +192,7 @@ for run in range(eegEpoch.shape[1]-1):
         param_grid = {
             'svc__C': [1],  # SVM regularization parameter
             'svc__gamma': [1],  # Kernel coefficient for 'rbf'
-            'svc__kernel': ['poly']  # Kernel type
+            'svc__kernel': ['sigmoid']  # Kernel type (sigmoid for 96, poly for 24)
         }
     
         # apply cros-validaion on training set to find best SVM parameters
@@ -210,7 +216,9 @@ for run in range(eegEpoch.shape[1]-1):
     # calculating the performance for each channel    
     clf_performance = [(acc_temp[i] + precision_temp[i] + recall_temp[i] + f1score_temp[i]) for i in range(len(acc_temp))]   
     # finding the index of channel with least effect on the model performance 
-    chanIdx = clf_performance.index(max(clf_performance))
+    maxacc = max(clf_performance)
+    maxind = [index for index, value in enumerate(clf_performance) if value == maxacc]
+    chanIdx = random.choice(maxind)
     modelAcc.append(acc_temp[chanIdx])
     # deleting that channel from the 
     eegCalc = np.delete(eegCalc, obj=chanIdx, axis=1)
@@ -221,7 +229,7 @@ for run in range(eegEpoch.shape[1]-1):
 
 # plot the model performance 
 plt.plot(np.arange(1, len(chanDeleted)+1), modelAcc, 'bs--', linewidth = 0.6)
-plt.title('SVM Model Performance after Channel Reduction (feat: CCA, kernel: poly, c:1, gamma:1)')
+plt.title('SVM Model Performance after Channel Reduction (feat: CCA, kernel: sigmoid, c:1, gamma:1)')
 plt.ylabel('Model Performance')
 plt.xlabel('no of channels reduced')
 plt.grid(color= 'lightgrey', alpha= 0.3)
